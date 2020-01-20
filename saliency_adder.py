@@ -40,6 +40,16 @@ def add_saliency_mbd(train=True):
             f.close()
 
 
+def get_progressed_input_names(train=True):
+    input_names = train_input_names if train else val_input_names
+    output_dir = train_output_dir if train else val_output_dir
+
+    progressed = glob.glob(output_dir + '**/*.pickle', recursive=True)
+    progressed = [elm.replace('_sali', '')[:-6] + 'JPEG' for elm in progressed]
+    progressed_input_names = set(input_names) - set(progressed)
+    return progressed_input_names
+
+
 def encode_mbd_to_pickle(output_dir, mbd):
     # output_directory.jpeg -> output_directory.pickle
     filename = output_dir[:-5] + '.pickle'
@@ -79,12 +89,24 @@ def decode_from_pickle(filename):
 # Result: (num_train_imgs + num_val_imgs) imgs with the 4th channel added (parsed to .pickle), copied to output_dirs
 # @jit
 def main():
+    global train_input_names
+    global val_input_names
+
     assert len(train_input_names) == num_train_imgs
     assert len(val_input_names) == num_val_imgs
     print("Initial assertion successful: Loaded all image directories")
 
-    train = [Thread(target=add_saliency_mbd, args=(True,)) for _ in range(8)]
-    validate = [Thread(target=add_saliency_mbd, args=(False,)) for _ in range(4)]
+    train_input_names = get_progressed_input_names(train=True)
+    print("Loaded all progress for train dataset (Excluded all processed images)")
+    val_input_names = get_progressed_input_names(train=False)
+    print("Loaded all progress for validation dataset (Excluded all processed images)")
+
+    train_thrd = 11
+    val_thrd = 1
+    train = [Thread(target=add_saliency_mbd, args=(True,)) for _ in range(train_thrd)]
+    validate = [Thread(target=add_saliency_mbd, args=(False,)) for _ in range(val_thrd)]
+    print(f"Created {train_thrd} threads for train dataset")
+    print(f"Created {val_thrd} threads for train dataset")
 
     [t_thrd.start() for t_thrd in train]
     [v_thrd.start() for v_thrd in validate]
@@ -97,6 +119,7 @@ def main():
     ## Final check
     train_output_names = glob.glob(train_output_dir + '**/*.pickle', recursive=True)
     val_output_names = glob.glob(val_output_dir + '**/*.pickle', recursive=True)
+    print('===============================================================')
     print('Converted train images:', len(train_output_names), 'All converted:', len(train_output_names) == num_train_imgs)
     print('Converted validation images:', len(val_output_names), 'All converted:', len(val_output_names) == num_val_imgs)
 
