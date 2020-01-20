@@ -1,4 +1,4 @@
-import pyimgsaliency as psal
+import saliency_cupy as psal
 import glob
 import cv2
 import os
@@ -31,8 +31,11 @@ def add_saliency_mbd(train=True):
                 os.makedirs(os.path.dirname(output_dir), exist_ok=True)
 
                 # rgb = cv2.imread(infile_name, cv2.IMREAD_UNCHANGED)
-                mbd = psal.get_saliency_mbd(current_job_filename).astype('uint8')
-                encode_mbd_to_pickle(output_dir, mbd)
+                if os.path.isfile(output_dir):
+                    print('File already exists')
+                else:
+                    mbd = psal.get_saliency_mbd(current_job_filename).astype('uint8')
+                    encode_mbd_to_pickle(output_dir, mbd)
         except:
             with open('D:/ILSVRC2012/saliency_adder_log.txt', 'a') as f:
                 f.write(current_job_filename + '\n')
@@ -53,13 +56,10 @@ def get_progressed_input_names(train=True):
 def encode_mbd_to_pickle(output_dir, mbd):
     # output_directory.jpeg -> output_directory.pickle
     filename = output_dir[:-5] + '.pickle'
-    if os.path.isfile(filename):
-        print('File already exists')
-    else:
-        with open(filename, 'wb') as f_out:
-            pickle.dump(mbd, f_out)
-        f_out.close()
-        print('Successfully serialized saliency map (mbd) to:', filename)
+    with open(filename, 'wb') as f_out:
+        pickle.dump(mbd, f_out)
+    f_out.close()
+    print('Successfully serialized saliency map (mbd) to:', filename)
 
 
 def encode_rgbs_to_pickle(output_dir, rgb, mbd):
@@ -97,9 +97,9 @@ def main():
     print("Initial assertion successful: Loaded all image directories")
 
     train_input_names = get_progressed_input_names(train=True)
-    print("Loaded all progress for train dataset (Excluded all processed images)")
+    print(f"Loaded progress: {len(train_input_names)} train images left (Excluded all processed images)")
     val_input_names = get_progressed_input_names(train=False)
-    print("Loaded all progress for validation dataset (Excluded all processed images)")
+    print(f"Loaded proress: {len(val_input_names)} validation images left (Excluded all processed images)")
 
     train_thrd = 11
     val_thrd = 1
